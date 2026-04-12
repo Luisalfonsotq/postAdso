@@ -33,16 +33,22 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'slug'         => 'required|string|unique:posts,slug',
-            'excerpt'      => 'required|string',
-            'content'      => 'required|string',
-            'img_path'     => 'nullable|string',
-            'user_id'      => 'required|exists:users,id',
-            'category_id'  => 'required|exists:categories,id',
+            'title' => 'required|string|max:255',
+            'slug' => 'required|string|unique:posts,slug',
+            'excerpt' => 'required|string',
+            'content' => 'required|string',
+            'img_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'user_id' => 'required|exists:users,id',
+            'category_id' => 'required|exists:categories,id',
             'is_published' => 'boolean',
             'published_at' => 'nullable|date',
         ]);
+
+        if ($request->hasFile('img_path')) {
+            $validated['img_path'] = $request->file('img_path')->store('posts', 'public');
+        } else {
+            $validated['img_path'] = null;
+        }
 
         Post::create($validated);
 
@@ -73,16 +79,25 @@ class PostController extends Controller
     public function update(Request $request, Post $post)
     {
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'slug'         => 'required|string|unique:posts,slug,' . $post->id,
-            'excerpt'      => 'required|string',
-            'content'      => 'required|string',
-            'img_path'     => 'nullable|string',
-            'user_id'      => 'required|exists:users,id',
-            'category_id'  => 'required|exists:categories,id',
+            'title' => 'required|string|max:255',
+            'slug' => 'required|string|unique:posts,slug,' . $post->id,
+            'excerpt' => 'required|string',
+            'content' => 'required|string',
+            'img_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'user_id' => 'required|exists:users,id',
+            'category_id' => 'required|exists:categories,id',
             'is_published' => 'boolean',
             'published_at' => 'nullable|date',
         ]);
+
+        if ($request->hasFile('img_path')) {
+            if ($post->img_path) {
+                \Storage::disk('public')->delete($post->img_path);
+            }
+            $validated['img_path'] = $request->file('img_path')->store('posts', 'public');
+        } else {
+            unset($validated['img_path']);
+        }
 
         $post->update($validated);
 

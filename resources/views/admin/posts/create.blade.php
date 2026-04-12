@@ -6,11 +6,15 @@
         </div>
 
         <flux:card>
-            <form action="{{ route('admin.posts.store') }}" method="POST" class="space-y-6">
+            <form action="{{ route('admin.posts.store') }}" method="POST" enctype="multipart/form-data"
+                class="space-y-6">
                 @csrf
-                
+
                 <input type="hidden" name="user_id" value="{{ auth()->id() }}">
-                <input type="hidden" name="img_path" value="posts/default.jpg">
+                <flux:input label="Imagen del post" name="img_path" type="file" accept="image/*" />
+                @error('img_path')
+                    <div class="text-red-500">{{ $message }}</div>
+                @enderror
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <flux:input label="Título" name="title" :value="old('title')" required />
@@ -32,12 +36,14 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:input type="datetime-local" label="Fecha de Publicación" name="published_at" :value="old('published_at')" />
+                    <flux:input type="datetime-local" label="Fecha de Publicación" name="published_at"
+                        :value="old('published_at')" />
 
                     <div class="flex items-center md:pt-8">
                         {{-- Laravel recibirá 0 si no se marca, o 1 si se marca --}}
                         <input type="hidden" name="is_published" value="0">
-                        <flux:checkbox label="¿Publicar inmediatamente?" name="is_published" value="1" :checked="old('is_published')" />
+                        <flux:checkbox label="¿Publicar inmediatamente?" name="is_published" value="1"
+                            :checked="old('is_published')" />
                     </div>
                 </div>
 
@@ -54,7 +60,7 @@
     </flux:main>
 </x-layouts::app.sidebar>
 <script>
-    document.querySelector('input[name="title"]').addEventListener('input', function() {
+    document.querySelector('input[name="title"]').addEventListener('input', function () {
         let slug = this.value.toLowerCase()
             .replace(/[^\w ]+/g, '')
             .replace(/ +/g, '-');
