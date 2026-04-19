@@ -2,7 +2,7 @@
     <flux:main>
         <div class="mb-6">
             <flux:heading size="xl" level="1">Editar Post</flux:heading>
-            <flux:subheading>Actualiza la información del post: <b>{{ $post->title }}</b></flux:subheading>
+            <flux:subheading>Actualizando: <b>{{ $post->title }}</b></flux:subheading>
         </div>
 
         <flux:card>
@@ -13,8 +13,59 @@
 
                 <input type="hidden" name="user_id" value="{{ $post->user_id }}">
 
+                {{-- ─── Imagen con previsualización ─────────────────────────── --}}
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Imagen del post
+                        @if($post->img_path)
+                            <span class="ml-2 text-xs text-indigo-500 font-normal">(ya tiene imagen)</span>
+                        @endif
+                    </label>
+
+                    <div id="image-preview-wrapper-edit"
+                        class="relative w-full h-56 rounded-xl border-2 border-dashed
+                               {{ $post->img_path ? 'border-indigo-300 dark:border-indigo-700' : 'border-zinc-300 dark:border-zinc-600' }}
+                               bg-zinc-50 dark:bg-zinc-900 overflow-hidden flex items-center justify-center
+                               transition-all duration-300 cursor-pointer group"
+                        onclick="document.getElementById('img-input-edit').click()">
+
+                        {{-- Placeholder cuando no hay imagen --}}
+                        <div id="placeholder-edit"
+                            class="{{ $post->img_path ? 'hidden' : '' }} flex flex-col items-center gap-2 text-zinc-400 select-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 opacity-50" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 16l4-4a3 3 0 014.24 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-sm font-medium">Haz clic para subir una imagen</span>
+                            <span class="text-xs opacity-70">JPG, PNG, GIF, WEBP · máx. 2 MB</span>
+                        </div>
+
+                        {{-- Preview: imagen actual o nueva --}}
+                        <img id="img-preview-edit"
+                            src="{{ $post->img_path ? Storage::url($post->img_path) : '#' }}"
+                            alt="Imagen del post"
+                            class="{{ $post->img_path ? '' : 'hidden' }} absolute inset-0 w-full h-full object-cover rounded-xl transition-opacity duration-300" />
+
+                        {{-- Overlay hover --}}
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity
+                                    duration-200 flex items-center justify-center rounded-xl pointer-events-none">
+                            <span class="text-white text-sm font-semibold">
+                                {{ $post->img_path ? 'Cambiar imagen' : 'Subir imagen' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <input id="img-input-edit" type="file" name="img_path" accept="image/*" class="hidden"
+                        onchange="previewImage(this, 'img-preview-edit', 'placeholder-edit')">
+
+                    @error('img_path')
+                        <p class="text-red-500 text-sm">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- ─── Título / Slug ─────────────────────────────────────────── --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {{-- Usamos :value para pasar la variable PHP directamente --}}
                     <flux:input label="Título" name="title" :value="old('title', $post->title)" required />
                     <flux:input label="Slug" name="slug" :value="old('slug', $post->slug)" required />
                 </div>
@@ -26,43 +77,57 @@
                 <flux:textarea label="Contenido del Post" name="content" rows="10" required>
                     {{ old('content', $post->content) }}
                 </flux:textarea>
-                {{-- Previsualizar imagen --}}
-                <div class="space-y-2">
-                    @if($post->img_path)
-                        <p class="text-sm text-zinc-500">Imagen actual:</p>
-                        <img src="{{ Storage::url($post->img_path) }}" alt="Imagen actual"
-                            class="h-32 w-auto rounded-lg object-cover">
-                    @endif
-                    <flux:input type="file" label="Nueva imagen (opcional)" name="img_path" accept="image/*" />
-                    @error('img_path') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {{-- En Flux Select, a veces es mejor manejar el 'selected' manualmente en los options --}}
+                {{-- ─── Categoría | Fecha | Estado ──────────────────────────── --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <flux:select label="Categoría" name="category_id">
                         @foreach($categories as $category)
-                            <option value="{{ $category->id }}" {{ (old('category_id', $post->category_id) == $category->id) ? 'selected' : '' }}>
+                            <option value="{{ $category->id }}"
+                                {{ (old('category_id', $post->category_id) == $category->id) ? 'selected' : '' }}>
                                 {{ $category->name }}
                             </option>
                         @endforeach
                     </flux:select>
 
-                    {{-- El input datetime-local REQUIERE el formato Y-m-d\TH:i --}}
                     <flux:input type="datetime-local" label="Fecha de Publicación" name="published_at"
                         :value="old('published_at', $post->published_at?->format('Y-m-d\TH:i'))" />
-
-                    <div class="flex items-center md:pt-8">
-                        <input type="hidden" name="is_published" value="0">
-                        <flux:checkbox label="¿Publicado?" name="is_published" value="1"
-                            :checked="old('is_published', $post->is_published)" />
-                    </div>
                 </div>
 
-                <div class="flex gap-2 justify-end">
+                {{-- Tags --}}
+                @if($tags->isNotEmpty())
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Etiquetas (Tags)</label>
+                    <div class="flex flex-wrap gap-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700
+                                bg-zinc-50 dark:bg-zinc-900">
+                        @foreach($tags as $tag)
+                            <label
+                                class="tag-pill flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer
+                                       text-sm font-medium select-none transition-all duration-150
+                                       border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400
+                                       hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400
+                                       has-[:checked]:bg-indigo-500 has-[:checked]:border-indigo-500 has-[:checked]:text-white">
+                                <input type="checkbox" name="tags[]" value="{{ $tag->id }}"
+                                    class="sr-only"
+                                    {{ in_array($tag->id, old('tags', $selectedTags)) ? 'checked' : '' }}>
+                                <span>#{{ $tag->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                <div class="flex items-center gap-3">
+                    <input type="hidden" name="is_published" value="0">
+                    <flux:checkbox label="¿Publicado?" name="is_published" value="1"
+                        :checked="old('is_published', $post->is_published)" />
+                </div>
+
+                {{-- ─── Acciones ───────────────────────────────────────────────── --}}
+                <div class="flex gap-2 justify-end pt-2 border-t border-zinc-100 dark:border-zinc-800">
                     <flux:button as="a" :href="route('admin.posts.index')" variant="ghost" wire:navigate>
                         Cancelar
                     </flux:button>
-                    <flux:button type="submit" variant="primary">
+                    <flux:button type="submit" variant="primary" icon="check">
                         Actualizar Post
                     </flux:button>
                 </div>
@@ -70,3 +135,19 @@
         </flux:card>
     </flux:main>
 </x-layouts::app.sidebar>
+
+<script>
+    function previewImage(input, previewId, placeholderId) {
+        const preview = document.getElementById(previewId);
+        const placeholder = document.getElementById(placeholderId);
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                if (placeholder) placeholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>

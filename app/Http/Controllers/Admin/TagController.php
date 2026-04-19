@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\Tag;
 use App\Http\Controllers\Controller;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 
 class TagController extends Controller
@@ -13,7 +13,9 @@ class TagController extends Controller
      */
     public function index()
     {
-        //
+        $tags = Tag::withCount('posts')->latest()->get();
+
+        return view('admin.tags.index', compact('tags'));
     }
 
     /**
@@ -21,7 +23,7 @@ class TagController extends Controller
      */
     public function create()
     {
-        //
+        return view('admin.tags.create');
     }
 
     /**
@@ -29,7 +31,14 @@ class TagController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:tags,name',
+            'slug' => 'required|string|unique:tags,slug',
+        ]);
+
+        Tag::create($validated);
+
+        return redirect()->route('admin.tags.index')->with('info', 'Tag creado.');
     }
 
     /**
@@ -37,7 +46,9 @@ class TagController extends Controller
      */
     public function show(Tag $tag)
     {
-        //
+        $tag->load('posts');
+
+        return view('admin.tags.show', compact('tag'));
     }
 
     /**
@@ -45,7 +56,7 @@ class TagController extends Controller
      */
     public function edit(Tag $tag)
     {
-        //
+        return view('admin.tags.edit', compact('tag'));
     }
 
     /**
@@ -53,7 +64,14 @@ class TagController extends Controller
      */
     public function update(Request $request, Tag $tag)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:tags,name,'.$tag->id,
+            'slug' => 'required|string|unique:tags,slug,'.$tag->id,
+        ]);
+
+        $tag->update($validated);
+
+        return redirect()->route('admin.tags.index')->with('success', 'Tag actualizado.');
     }
 
     /**
@@ -61,6 +79,8 @@ class TagController extends Controller
      */
     public function destroy(Tag $tag)
     {
-        //
+        $tag->delete();
+
+        return redirect()->route('admin.tags.index')->with('success', 'Tag eliminado.');
     }
 }

@@ -9,6 +9,7 @@ class Post extends Model
 {
     /** @use HasFactory<\Database\Factories\PostFactory> */
     use HasFactory;
+
     protected $fillable = [
         'title',
         'slug',
@@ -18,7 +19,7 @@ class Post extends Model
         'user_id',
         'category_id',
         'is_published',
-        'published_at'
+        'published_at',
     ];
 
     protected $casts = [
@@ -34,5 +35,10 @@ class Post extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class);
     }
 }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\Category;
+use App\Models\Tag;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -14,7 +16,7 @@ class PostController extends Controller
      */
     public function index()
     {
-        $posts = Post::with('category')->latest()->paginate(10);
+        $posts = Post::with(['category', 'tags'])->latest()->paginate(10);
         return view('admin.posts.index', compact('posts'));
     }
 
@@ -24,7 +26,8 @@ class PostController extends Controller
     public function create()
     {
         $categories = Category::all();
-        return view('admin.posts.create', compact('categories'));
+        $tags = Tag::orderBy('name')->get();
+        return view('admin.posts.create', compact('categories', 'tags'));
     }
 
     /**
@@ -33,15 +36,17 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'slug' => 'required|string|unique:posts,slug',
-            'excerpt' => 'required|string',
-            'content' => 'required|string',
-            'img_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'user_id' => 'required|exists:users,id',
+            'title'       => 'required|string|max:255',
+            'slug'        => 'required|string|unique:posts,slug',
+            'excerpt'     => 'required|string',
+            'content'     => 'required|string',
+            'img_path'    => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'user_id'     => 'required|exists:users,id',
             'category_id' => 'required|exists:categories,id',
             'is_published' => 'boolean',
             'published_at' => 'nullable|date',
+            'tags'        => 'nullable|array',
+            'tags.*'      => 'exists:tags,id',
         ]);
 
         if ($request->hasFile('img_path')) {
@@ -50,9 +55,12 @@ class PostController extends Controller
             $validated['img_path'] = null;
         }
 
-        Post::create($validated);
+        $post = Post::create($validated);
 
-        return redirect()->route('admin.posts.index')->with('info', 'Post creado.');
+        // Sync tags (muchos a muchos)
+        $post->tags()->sync($request->input('tags', []));
+
+        return redirect()->route('admin.posts.index')->with('info', 'Post creado exitosamente.');
     }
 
     /**
@@ -60,6 +68,7 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
+        $post->load('tags');
         return view('admin.posts.show', compact('post'));
     }
 
@@ -69,8 +78,10 @@ class PostController extends Controller
     public function edit(Post $post)
     {
         $categories = Category::all();
+        $tags = Tag::orderBy('name')->get();
+        $selectedTags = $post->tags->pluck('id')->toArray();
 
-        return view('admin.posts.edit', compact('post', 'categories'));
+        return view('admin.posts.edit', compact('post', 'categories', 'tags', 'selectedTags'));
     }
 
     /**
@@ -79,20 +90,22 @@ class PostController extends Controller
     public function update(Request $request, Post $post)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'slug' => 'required|string|unique:posts,slug,' . $post->id,
-            'excerpt' => 'required|string',
-            'content' => 'required|string',
-            'img_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'user_id' => 'required|exists:users,id',
+            'title'       => 'required|string|max:255',
+            'slug'        => 'required|string|unique:posts,slug,' . $post->id,
+            'excerpt'     => 'required|string',
+            'content'     => 'required|string',
+            'img_path'    => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'user_id'     => 'required|exists:users,id',
             'category_id' => 'required|exists:categories,id',
             'is_published' => 'boolean',
             'published_at' => 'nullable|date',
+            'tags'        => 'nullable|array',
+            'tags.*'      => 'exists:tags,id',
         ]);
 
         if ($request->hasFile('img_path')) {
             if ($post->img_path) {
-                \Storage::disk('public')->delete($post->img_path);
+                Storage::disk('public')->delete($post->img_path);
             }
             $validated['img_path'] = $request->file('img_path')->store('posts', 'public');
         } else {
@@ -101,7 +114,10 @@ class PostController extends Controller
 
         $post->update($validated);
 
-        return redirect()->route('admin.posts.index')->with('success', 'Post actualizado.');
+        // Sync tags (muchos a muchos)
+        $post->tags()->sync($request->input('tags', []));
+
+        return redirect()->route('admin.posts.index')->with('success', 'Post actualizado exitosamente.');
     }
 
     /**
@@ -109,7 +125,13 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
+        if ($post->img_path) {
+            Storage::disk('public')->delete($post->img_path);
+        }
+
+        $post->tags()->detach();
         $post->delete();
+
         return redirect()->route('admin.posts.index')->with('success', 'Post eliminado.');
     }
 }
